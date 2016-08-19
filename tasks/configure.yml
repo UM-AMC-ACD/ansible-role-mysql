@@ -37,8 +37,8 @@
   file:
     path: "{{ mysql_datadir }}"
     state: directory
-    owner: mysql
-    group: mysql
+    owner: "{{ mysql_user }}"
+    group: "{{ mysql_group }}"
     mode:  0755
     setype: mysqld_db_t
 
@@ -46,24 +46,46 @@
   file:
     path: "{{ mysql_slow_query_log_file }}"
     state: file
-    owner: mysql
-    group: mysql
+    owner: "{{ mysql_user }}"
+    group: "{{ mysql_group }}"
     mode: 0640
   when: mysql_slow_query_log_enabled
 
 - name: Create error log file (if configured).
-  shell: "touch {{ mysql_log_error }} creates={{ mysql_log_error }}"
+  file:
+    path: "{{ mysql_log_error}}"
+    state: touch
+    owner: "{{ mysql_user }}"
+    group: "{{ mysql_group }}"
+    mode: 0640
   when: mysql_log == "" and mysql_log_error != ""
 
 - name: Set ownership on error log file (if configured).
   file:
     path: "{{ mysql_log_error }}"
     state: file
-    owner: mysql
-    group: mysql
+    owner: "{{ mysql_user }}"
+    group: "{{ mysql_group }}"
     mode: 0640
   when: mysql_log == "" and mysql_log_error != ""
+
+- name: Determine if pid directory exists
+  stat: 
+   path: "{{ mysql_pid_dir }}"
+  register: piddir
+
+- debug: var=piddir
+
+- name: Create pid directory if it does not exist
+  file:
+   path: "{{ mysql_pid_dir }}"
+   state: directory
+   owner: "{{ mysql_user }}"
+   group: "{{ mysql_group }}"
+   mode: 0755
+  when: not piddir.stat.exists 
 
 - name: Ensure MySQL is started and enabled on boot.
   service: "name={{ mysql_daemon }} state=started enabled={{ mysql_enabled_on_startup }}"
   register: mysql_service_configuration
+
